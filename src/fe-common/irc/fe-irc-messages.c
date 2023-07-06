@@ -194,12 +194,19 @@ static void sig_message_irc_action(IRC_SERVER_REC *server, const char *msg,
 {
 	void *item;
 	const char *oldtarget;
-        char *freemsg = NULL;
+        char *freemsg, *account = NULL;
 	int level;
 	int own = FALSE;
+	CHANNEL_REC *chanrec;
+	NICK_REC *nickrec = NULL;
+
 
 	oldtarget = target;
 	target = fe_channel_skip_prefix(IRC_SERVER(server), target);
+	chanrec = channel_find(SERVER(server), target);
+	if (nickrec == NULL && chanrec != NULL)
+                nickrec = nicklist_find(chanrec, nick);
+	account = nickrec->account;
 
 	level = MSGLEVEL_ACTIONS |
 		(server_ischannel(SERVER(server), target) ? MSGLEVEL_PUBLIC : MSGLEVEL_MSGS);
@@ -216,6 +223,16 @@ static void sig_message_irc_action(IRC_SERVER_REC *server, const char *msg,
 
 	if (settings_get_bool("emphasis"))
 		msg = freemsg = expand_emphasis(item, msg);
+
+	if (settings_get_bool("show_nickserv_status")) {
+		if (account == NULL) {
+			nick = g_strconcat("?", nick, NULL);
+		} else if (g_ascii_strcasecmp(account,"*") == 0) {
+			nick = g_strconcat("~", nick, NULL);
+		} else if (g_ascii_strcasecmp(account,nick) != 0) {
+			nick = g_strconcat(nick, "(", account, ")", NULL);
+		}
+	}
 
 	if (server_ischannel(SERVER(server), target)) {
 		/* channel action */
