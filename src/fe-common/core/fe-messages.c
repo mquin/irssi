@@ -173,7 +173,7 @@ static void sig_message_public(SERVER_REC *server, const char *msg,
 	CHANNEL_REC *chanrec;
 	const char *printnick;
 	int for_me, print_channel, level;
-	char *nickmode, *color, *freemsg = NULL;
+	char *nickmode, *color, *freemsg, *account  = NULL;
 	HILIGHT_REC *hilight;
 	TEXT_DEST_REC dest;
 
@@ -214,6 +214,7 @@ static void sig_message_public(SERVER_REC *server, const char *msg,
 	/* get nick mode & nick what to print the msg with
 	   (in case there's multiple identical nicks) */
 	nickmode = channel_get_nickmode_rec(nickrec);
+	account = nickrec->account;
 	printnick = nickrec == NULL ? nick :
 		g_hash_table_lookup(printnicks, nickrec);
 	if (printnick == NULL)
@@ -222,6 +223,18 @@ static void sig_message_public(SERVER_REC *server, const char *msg,
 	format_create_dest(&dest, server, target, level, NULL);
 	dest.address = address;
 	dest.nick = nick;
+
+	if (settings_get_bool("show_nickserv_status")) {
+		if (account == NULL) {
+			printnick = g_strconcat("?", printnick, NULL);
+		} else if (g_ascii_strcasecmp(account,"*") == 0) {
+			printnick = g_strconcat("~", printnick, NULL);
+		} else if (g_ascii_strcasecmp(account,printnick) != 0) {
+			printnick = g_strconcat(printnick, "(", account, ")", NULL);
+		}
+	}
+
+
 	if (color != NULL) {
 		/* highlighted nick */
 		hilight_update_text_dest(&dest,hilight);
@@ -803,6 +816,7 @@ void fe_messages_init(void)
 	settings_add_bool("lookandfeel", "away_notify_public", FALSE);
 	settings_add_bool("lookandfeel", "show_extended_join", FALSE);
 	settings_add_bool("lookandfeel", "show_account_notify", FALSE);
+	settings_add_bool("lookandfeel", "show_nickserv_status", FALSE);
 
 	signal_add_last("message public", (SIGNAL_FUNC) sig_message_public);
 	signal_add_last("message private", (SIGNAL_FUNC) sig_message_private);
